@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<!--
+  메챠 카멜레온 찾기 - UI 전체 (파일 1개)
+  사용법: 이 파일을 index.html 로 저장 → 더블클릭하면 브라우저에서 열립니다.
+  구성: ① <style> 디자인  ② <body> 화면 구조  ③ <script> 동작
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>메챠 카멜레온 찾기</title>
+
+<!-- ① 디자인(CSS) -->
+<style>
+/* 색상은 여기서 한 번에 바꿀 수 있어요 */
+:root{
+  --green:#3f5c2b;   /* 진초록 */
+  --or:#e0682d;      /* 주황(포인트) */
+  --bg:#f4f1ea;      /* 배경 */
+  --card:#fbfaf6;    /* 카드 배경 */
+  --tx:#1f2a1f;      /* 글자색 */
+  --mut:#5d6b55;     /* 흐린 글자색 */
+  --ln:#cfc9b6;      /* 테두리 */
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.5}
+.wrap{max-width:860px;margin:0 auto;padding:24px 20px}
+.tag{color:var(--or);font-weight:700;font-size:14px;margin:0}
+h1{font-size:clamp(32px,6vw,48px);line-height:1.15;margin:8px 0 10px}
+h2{margin:4px 0 14px}
+.sub{color:var(--mut);margin:0 0 18px}
+.info{font-size:13px;color:var(--mut)}
+
+/* 버튼 */
+.btn{display:inline-block;border:2px solid var(--green);background:var(--green);color:#fff;padding:11px 26px;border-radius:999px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;margin:0 8px 8px 0}
+.btn.ghost{background:transparent;color:var(--green)}
+.btn.or{background:var(--or);border-color:var(--or)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* 사진 올리는 상자 */
+.drop{border:3px dashed var(--ln);border-radius:18px;background:var(--card);padding:28px;text-align:center;cursor:pointer}
+.drop.over{border-color:var(--or);background:rgba(224,104,45,.08)}
+.panel{background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:16px}
+.preview{position:relative;line-height:0;border-radius:14px;overflow:hidden}
+.preview img{width:100%;max-height:62vh;object-fit:contain;display:block}
+.err{color:#c0392b;font-weight:700;min-height:24px;margin:8px 0}
+
+/* AI가 찾은 위치 박스 */
+.bb{position:absolute;border:3px dashed var(--or)}
+.bb span{position:absolute;left:-3px;bottom:100%;background:var(--or);color:#fff;font-size:12px;font-weight:700;padding:2px 8px;line-height:1.5;white-space:nowrap}
+
+/* 결과 화면 */
+.res{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:720px){.res{grid-template-columns:1fr}}
+.score{font-size:72px;font-weight:300;color:var(--green);line-height:1}
+.badge{display:inline-block;background:var(--or);color:#fff;font-weight:700;border-radius:999px;padding:4px 14px;font-size:14px;margin:8px 0 12px}
+.row{margin:6px 0;font-size:14px}
+.row b{display:inline-block;width:84px}
+.row span{color:var(--mut)}
+
+/* 로딩 빙글빙글 */
+.spin{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:r .8s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+
+<!-- ② 화면 구조(HTML) -->
+<body>
+<div class="wrap">
+
+  <!-- 화면 1: 사진 올리기 -->
+  <section id="upload" class="view">
+    <p class="tag">YOLO 기반 위장 숨바꼭질</p>
+    <h1>숨긴 사진을 올려<br>AI에게 들켜 보세요</h1>
+    <p class="sub">캐릭터를 배경에 숨긴 사진을 올리고 제출하면, AI가 찾아서 점수를 매겨 줍니다.</p>
+
+    <!-- 사진 선택 상자 -->
+    <div class="drop" id="drop">
+      <div style="font-size:40px">📷</div>
+      <p style="margin:6px 0;font-weight:700">사진을 끌어다 놓거나 눌러서 선택하세요</p>
+      <p class="info" style="margin:0">JPG · PNG · WEBP, 최대 10MB</p>
+      <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>
+    </div>
+
+    <!-- 미리보기 (사진을 고르면 나타남) -->
+    <div id="pv" hidden style="margin-top:16px">
+      <div class="panel">
+        <div class="preview"><img id="img" alt="미리보기"></div>
+        <p class="info" id="meta" style="margin:10px 0 0"></p>
+      </div>
+    </div>
+
+    <div class="err" id="err"></div>
+    <button class="btn or" id="submit" disabled>제출하고 평가받기</button>
+    <button class="btn ghost" id="clear" hidden>사진 바꾸기</button>
+  </section>
+
+  <!-- 화면 2: 결과 -->
+  <section id="result" class="view" hidden>
+    <p class="tag">결과</p>
+    <h2>평가받기</h2>
+    <div class="panel res">
+      <div>
+        <div class="preview" id="shot"></div>
+        <svg id="radar" viewBox="0 0 320 300" style="width:100%"></svg>
+      </div>
+      <div>
+        <span class="score" id="score">0</span> <span class="info">/ 100점</span><br>
+        <span class="badge" id="title"></span>
+        <div id="cm"></div>
+        <p class="info" id="note"></p>
+        <a class="btn" href="#upload">다시 도전</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ③ 동작(JavaScript) -->
+<script>
+/* ★ 서버가 완성되면 여기 주소만 바꾸세요 */
+const API_URL = '/detect';
+
+const MAX_MB = 10;
+const OK = ['image/jpeg','image/png','image/webp'];
+const $ = id => document.getElementById(id);   // id로 요소 찾는 짧은 함수
+let file = null, objUrl = null, state = {};
+
+/* --- 1. 사진 선택 (클릭 / 드래그) --- */
+const drop = $('drop'), inp = $('file');
+drop.onclick = () => inp.click();
+inp.onchange = () => pick(inp.files[0]);
+['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => pick(e.dataTransfer.files[0]));
+
+function pick(f){
+  $('err').textContent = '';
+  if (!f) return;
+  if (!OK.includes(f.type)) { $('err').textContent = 'JPG, PNG, WEBP 사진만 올릴 수 있어요.'; return; }
+  if (f.size > MAX_MB*1024*1024) { $('err').textContent = `사진이 너무 커요. ${MAX_MB}MB 이하로 올려 주세요.`; return; }
+  file = f;
+  if (objUrl) URL.revokeObjectURL(objUrl);
+  objUrl = URL.createObjectURL(f);
+  const im = $('img'); im.src = objUrl;
+  im.onload = () => {
+    state.w = im.naturalWidth; state.h = im.naturalHeight;
+    $('meta').textContent = `${f.name} · ${state.w}×${state.h} · ${(f.size/1048576).toFixed(1)}MB`;
+  };
+  $('pv').hidden = false; drop.hidden = true;
+  $('clear').hidden = false; $('submit').disabled = false;
+}
+
+$('clear').onclick = () => {
+  file = null; inp.value = '';
+  $('pv').hidden = true; drop.hidden = false;
+  $('clear').hidden = true; $('submit').disabled = true; $('err').textContent = '';
+};
+
+/* --- 2. 제출 (서버로 사진 보내기) --- */
+$('submit').onclick = async () => {
+  if (!file) return;
+  const b = $('submit');
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>AI가 찾는 중…';
+  let data, mock = false;
+  try {
+    const fd = new FormData();
+    fd.append('image', file);                         // 서버에서는 'image' 이름으로 받음
+    const res = await fetch(API_URL, { method:'POST', body: fd });
+    if (!res.ok) throw new Error('server ' + res.status);
+    data = await res.json();
+  } catch (e) {
+    mock = true; data = mockResult();                 // 서버 없으면 임시 결과로 대체
+    await new Promise(r => setTimeout(r, 900));
+  }
+  state.data = data; state.mock = mock; state.src = objUrl;
+  b.disabled = false; b.textContent = '제출하고 평가받기';
+  location.hash = 'result';
+};
+
+/* 서버 연결 전 확인용 임시 결과 (서버가 보내줄 JSON 형식과 같음) */
+function mockResult(){
+  const w = state.w || 600, h = state.h || 400;
+  return {
+    bbox: [w*.3, h*.2, w*.7, h*.85],   // [왼쪽x, 위y, 오른쪽x, 아래y] 픽셀
+    confidence: .87,
+    total_score: 82,
+    abilities: {'가림 정도':75,'색 동화':85,'경계 융합':60,'탐지 회피':90,'위치 센스':45},
+    title: '소심한 은둔 고수',
+    comments: {'가림 정도':'소심한데 잘 숨었어요.','색 동화':'주변과 완전히 어울려요.','경계 융합':'윤곽이 조금 선명해요.','탐지 회피':'AI가 잠깐 헷갈렸어요.','위치 센스':'너무 한가운데 있었네요.'}
+  };
+}
+
+/* --- 3. 결과 그리기 --- */
+function renderResult(){
+  const d = state.data;
+  if (!d) { location.hash = 'upload'; return; }
+
+  // 사진 + AI 탐지 박스
+  const s = $('shot'); s.innerHTML = '';
+  const im = document.createElement('img');
+  im.src = state.src; im.style.cssText = 'width:100%;display:block'; s.appendChild(im);
+  const place = () => {
+    const [x1,y1,x2,y2] = d.bbox, W = im.naturalWidth || state.w, H = im.naturalHeight || state.h;
+    const bx = document.createElement('div'); bx.className = 'bb';
+    bx.style.cssText = `left:${x1/W*100}%;top:${y1/H*100}%;width:${(x2-x1)/W*100}%;height:${(y2-y1)/H*100}%`;
+    bx.innerHTML = `<span>탐지 신뢰도 ${Number(d.confidence).toFixed(2)}</span>`;
+    s.appendChild(bx);
+  };
+  im.complete ? place() : im.onload = place;
+
+  // 점수, 칭호, 코멘트
+  $('score').textContent = d.total_score;
+  $('title').textContent = d.title;
+  const k = Object.keys(d.abilities), v = Object.values(d.abilities);
+  $('cm').innerHTML = k.map(n => `<div class="row"><b>${n}</b><span>${(d.comments && d.comments[n]) || ''}</span></div>`).join('');
+  $('note').textContent = state.mock ? '※ 서버가 연결되지 않아 임시 결과를 보여주고 있어요.' : '';
+
+  // 오각형(레이더) 그래프
+  const cx = 160, cy = 150, R = 105;
+  const pts = f => k.map((_, i) => { const t = -Math.PI/2 + i*2*Math.PI/k.length; return [cx+Math.cos(t)*R*f, cy+Math.sin(t)*R*f]; });
+  let g = '';
+  [.25,.5,.75,1].forEach(f => g += `<polygon points="${pts(f).join(' ')}" fill="none" stroke="#cfc9b6"/>`);
+  const dp = pts(1).map((q,i) => [cx+(q[0]-cx)*v[i]/100, cy+(q[1]-cy)*v[i]/100]);
+  g += `<polygon points="${dp.join(' ')}" fill="rgba(107,131,80,.4)" stroke="#3f5c2b" stroke-width="2.5"/>`;
+  dp.forEach(q => g += `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#3f5c2b"/>`);
+  pts(1.22).forEach((q,i) => g += `<text x="${q[0]}" y="${q[1]}" text-anchor="middle" font-size="12" fill="#1f2a1f">${k[i]} ${v[i]}</text>`);
+  $('radar').innerHTML = g;
+}
+
+/* --- 4. 화면 전환 (주소 뒤 #upload / #result) --- */
+function route(){
+  const h = location.hash.slice(1) === 'result' ? 'result' : 'upload';
+  document.querySelectorAll('.view').forEach(e => e.hidden = e.id !== h);
+  if (h === 'result') renderResult();
+  window.scrollTo(0, 0);
+}
+addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
