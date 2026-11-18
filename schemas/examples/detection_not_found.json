@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1",
+  "image": {
+    "width": 1390,
+    "height": 781
+  },
+  "detections": [],
+  "conf_threshold": 0.25,
+  "inference_ms": 39.2,
+  "model": "best_v1.pt"
+}

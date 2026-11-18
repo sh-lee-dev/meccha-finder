@@ -1,0 +1,22 @@
+{
+  "schema_version": "0.1",
+  "image": {
+    "width": 1390,
+    "height": 781
+  },
+  "detections": [
+    {
+      "bbox": [
+        412.0,
+        168.0,
+        538.0,
+        305.0
+      ],
+      "confidence": 0.87,
+      "class_name": "chameleon"
+    }
+  ],
+  "conf_threshold": 0.25,
+  "inference_ms": 41.5,
+  "model": "best_v1.pt"
+}

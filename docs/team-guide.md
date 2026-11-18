@@ -74,39 +74,20 @@ git push origin <내 브랜치>
 ## 6. 모듈 간 입출력 약속
 
 세 모듈이 서로 기다리지 않고 개발하려면 **주고받는 형식**을 먼저 맞춰 둬야 합니다.
-아래는 초안이며, 1주차에 확정합니다. 바꿀 때는 3명 모두에게 알립니다.
+형식의 기준은 [score-schema.md](score-schema.md)와 `schemas/` 폴더의 JSON Schema예요. 이 장은 요약만 적습니다.
 
-**모델 → 점수** (`src/model`의 `detect`)
+| 구간 | 함수·API | 형식 | 담당 |
+|---|---|---|---|
+| 모델 → 점수 | `src/model`의 `detect()` | `schemas/detection.schema.json` | 한울 → 상현 |
+| 프론트 → 서버 | `POST /detect` (`image` 파일) | [score-schema.md 2장](score-schema.md#2-프론트--서버-요청) | 승우 → 상현 |
+| 서버 → 프론트 | `POST /detect` 응답 | `schemas/score_response.schema.json`, `error_response.schema.json` | 상현 → 승우 |
 
-```python
-def detect(image_path: str) -> dict:
-    ...
+- 박스 좌표는 원본 사진 기준 픽셀 `[x1, y1, x2, y2]`예요.
+- 못 찾으면 `found: false`이고 점수는 `null`이에요. 화면 표현은 프론트가 정해요.
+- 능력치는 고정 `key`로 주고받아요. 화면 이름은 프론트가 정해요.
 
-# 반환 예시
-{
-    "found": True,                     # 못 찾으면 False
-    "bbox": [x1, y1, x2, y2],          # 픽셀 좌표, found가 False면 None
-    "confidence": 0.82,                # 0~1, found가 False면 0.0
-    "image_size": [width, height],
-}
-```
-
-**점수 → UI** (`src/score`의 `evaluate`)
-
-```python
-def evaluate(detection: dict, elapsed_sec: float | None = None) -> dict:
-    ...
-
-# 반환 예시
-{
-    "total": 78,                       # 0~100
-    "axes": {"축 이름": 70, ...},       # 능력치 차트용, 축은 2주차 확정
-    "comments": ["기준별 한 줄 코멘트", ...],
-}
-```
-
-**개발 중에는 더미 데이터를 써서** 서로의 완성을 기다리지 않습니다.
-(예: UI 담당은 위 반환 예시를 그대로 가짜 데이터로 사용)
+**개발 중에는 `schemas/examples/`의 예시 JSON을 더미 데이터로 써서** 서로의 완성을 기다리지 않습니다.
+형식을 바꿀 때는 `schema_version`을 올리고 3명 모두에게 알립니다.
 
 ## 7. Google Drive 사용법
 

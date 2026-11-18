@@ -1,0 +1,57 @@
+{
+  "schema_version": "0.1",
+  "found": true,
+  "image": {
+    "width": 1390,
+    "height": 781
+  },
+  "detection": {
+    "bbox": [
+      412.0,
+      168.0,
+      538.0,
+      305.0
+    ],
+    "confidence": 0.87
+  },
+  "total_score": 50,
+  "title": "아쉬운 견습 카멜레온",
+  "abilities": [
+    {
+      "key": "evasion",
+      "label": "탐지 회피",
+      "score": 13,
+      "comment": "AI가 바로 찾았어요."
+    },
+    {
+      "key": "color_blend",
+      "label": "색 동화",
+      "score": 72,
+      "comment": "주변 색과 잘 어울려요."
+    },
+    {
+      "key": "texture_blend",
+      "label": "질감 동화",
+      "score": 58,
+      "comment": "무늬가 조금 튀어요."
+    },
+    {
+      "key": "exposure",
+      "label": "노출 크기",
+      "score": 40,
+      "comment": "몸이 꽤 크게 보여요."
+    },
+    {
+      "key": "clutter",
+      "label": "배경 복잡도",
+      "score": 66,
+      "comment": "복잡한 곳을 잘 골랐어요."
+    }
+  ],
+  "elapsed_sec": null,
+  "meta": {
+    "model": "best_v1.pt",
+    "inference_ms": 41.5,
+    "conf_threshold": 0.25
+  }
+}

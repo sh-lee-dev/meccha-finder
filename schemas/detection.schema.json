@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "meccha-finder/detection.schema.json",
+  "title": "Detection result (model -> score)",
+  "description": "YOLO 탐지 결과. src/model 의 detect() 가 반환하고 src/score 의 evaluate() 가 입력으로 받는다.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "image",
+    "detections",
+    "conf_threshold"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "image": {
+      "type": "object",
+      "required": [
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "원본 사진 가로(px)"
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "원본 사진 세로(px)"
+        }
+      }
+    },
+    "detections": {
+      "type": "array",
+      "description": "찾은 캐릭터 목록. 신뢰도 높은 순. 못 찾으면 빈 배열. (다중 캐릭터 확장 대비 배열)",
+      "items": {
+        "$ref": "#/$defs/box"
+      }
+    },
+    "inference_ms": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "모델 추론 시간(ms), 선택"
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "사용한 가중치 이름, 예: best_v1.pt, 선택"
+    },
+    "conf_threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "이 값 이상인 박스만 detections에 넣음. 찾았다/못 찾았다의 기준"
+    }
+  },
+  "$defs": {
+    "box": {
+      "type": "object",
+      "required": [
+        "bbox",
+        "confidence",
+        "class_name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {
+          "type": "array",
+          "description": "[x1, y1, x2, y2] 원본 사진 기준 픽셀 좌표 (왼쪽 위, 오른쪽 아래)",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "class_name": {
+          "const": "chameleon"
+        }
+      }
+    }
+  }
+}
