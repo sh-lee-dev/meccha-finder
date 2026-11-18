@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "meccha-finder/score_response.schema.json",
+  "title": "Score response (server -> UI)",
+  "description": "POST /detect 성공 응답. 프론트는 이 형식만 보고 결과 화면을 그린다.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "found",
+    "image",
+    "detection",
+    "total_score",
+    "title",
+    "abilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "found": {
+      "type": "boolean",
+      "description": "AI가 캐릭터를 찾았는지"
+    },
+    "image": {
+      "type": "object",
+      "required": [
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "detection": {
+      "description": "결과 화면에 그릴 대표 탐지 1개 (신뢰도 최고). found=false 이면 null",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "bbox",
+            "confidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 4,
+              "maxItems": 4,
+              "description": "[x1, y1, x2, y2] 원본 사진 기준 픽셀"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      ]
+    },
+    "total_score": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "은폐 총점 (높을수록 잘 숨음). found=false 이면 null (판정 불가)"
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "점수 구간별 칭호 (임시). found=false 이면 null, 화면 문구는 프론트가 정함"
+    },
+    "abilities": {
+      "type": "array",
+      "description": "능력치 차트용. 순서 = 차트 순서, 개수는 고정하지 않음(5각형 → 6각형 확장 가능). 계산 못 한 항목은 score=null",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "score",
+          "comment"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "enum": [
+              "evasion",
+              "color_blend",
+              "texture_blend",
+              "exposure",
+              "clutter",
+              "find_difficulty"
+            ],
+            "description": "고정 키. 프론트는 이 키로 화면 이름을 정함"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "description": "임시 이름. 프론트가 key 기준으로 바꿔 써도 됨"
+          },
+          "score": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "comment": {
+            "type": "string",
+            "description": "항목별 한 줄 코멘트 (없으면 빈 문자열)"
+          }
+        }
+      }
+    },
+    "elapsed_sec": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "사람이 찾는 데 걸린 시간(초). 지금은 측정하지 않으므로 null"
+    },
+    "meta": {
+      "type": "object",
+      "description": "디버그·기록용. 화면 표시에 쓰지 않음",
+      "additionalProperties": true,
+      "properties": {
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inference_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "conf_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "found": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "detection": {
+            "type": "null"
+          },
+          "total_score": {
+            "type": "null"
+          },
+          "title": {
+            "type": "null"
+          },
+          "abilities": {
+            "items": {
+              "properties": {
+                "score": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "found": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "detection": {
+            "type": "object"
+          },
+          "total_score": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  ]
+}

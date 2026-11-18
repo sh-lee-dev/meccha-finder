@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "meccha-finder/error_response.schema.json",
+  "title": "Error response (server -> UI)",
+  "description": "POST /detect 실패 응답 (HTTP 4xx/5xx 와 함께)",
+  "type": "object",
+  "required": [
+    "error"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "INVALID_IMAGE",
+            "IMAGE_TOO_LARGE",
+            "INVALID_PARAM",
+            "MODEL_ERROR",
+            "INTERNAL_ERROR"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "description": "사용자에게 그대로 보여줘도 되는 한국어 문장"
+        }
+      }
+    }
+  }
+}

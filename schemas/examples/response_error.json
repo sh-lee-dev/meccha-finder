@@ -1,0 +1,3 @@
+{
+  "error": { "code": "INVALID_IMAGE", "message": "사진을 읽을 수 없어요. JPG, PNG, WEBP 파일로 다시 올려 주세요." }
+}

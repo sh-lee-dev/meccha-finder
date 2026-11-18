@@ -61,7 +61,9 @@ meccha-finder/
 ├── docs/
 │   ├── requirements.md       # 요구사항
 │   ├── decisions.md          # 결정 기록
+│   ├── score-schema.md       # 모듈 간 데이터 형식 (스키마 설명)
 │   └── team-guide.md         # 팀 지침서
+├── schemas/                  # JSON Schema와 예시 JSON (모듈 간 약속의 기준)
 ├── src/
 │   ├── model/                # YOLO 학습·추론
 │   ├── score/                # 점수 알고리즘
@@ -123,4 +125,5 @@ yolo detect predict model=runs/detect/train/weights/best.pt source=<이미지 �
 
 - [요구사항](docs/requirements.md)
 - [결정 기록](docs/decisions.md)
+- [데이터 스키마](docs/score-schema.md)
 - [팀 지침서](docs/team-guide.md)

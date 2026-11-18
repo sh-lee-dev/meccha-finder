@@ -1,0 +1,49 @@
+{
+  "schema_version": "0.1",
+  "found": false,
+  "image": {
+    "width": 1390,
+    "height": 781
+  },
+  "detection": null,
+  "total_score": null,
+  "title": null,
+  "abilities": [
+    {
+      "key": "evasion",
+      "label": "탐지 회피",
+      "score": null,
+      "comment": ""
+    },
+    {
+      "key": "color_blend",
+      "label": "색 동화",
+      "score": null,
+      "comment": ""
+    },
+    {
+      "key": "texture_blend",
+      "label": "질감 동화",
+      "score": null,
+      "comment": ""
+    },
+    {
+      "key": "exposure",
+      "label": "노출 크기",
+      "score": null,
+      "comment": ""
+    },
+    {
+      "key": "clutter",
+      "label": "배경 복잡도",
+      "score": null,
+      "comment": ""
+    }
+  ],
+  "elapsed_sec": null,
+  "meta": {
+    "model": "best_v1.pt",
+    "inference_ms": 39.2,
+    "conf_threshold": 0.25
+  }
+}
