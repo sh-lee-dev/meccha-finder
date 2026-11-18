@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!--
-  메챠 카멜레온 찾기 - UI 전체 (파일 1개)
-  사용법: 이 파일을 index.html 로 저장 → 더블클릭하면 브라우저에서 열립니다.
+  메챠 카멜레온 찾기 - 프론트엔드 (GitHub Pages용, 백엔드는 별도 서버)
+  사용법: ① 아래 <script> 맨 위 API_URL 을 백엔드 서버 주소로 바꾸기
+          ② 이 파일을 GitHub에 올리기 (더블클릭해서 열어도 동작)
+  이 화면은 백엔드가 주는 JSON 값만 받아서 그립니다. (YOLO·점수 계산은 전부 서버)
   구성: ① <style> 디자인  ② <body> 화면 구조  ③ <script> 동작
 -->
 <html lang="ko">
@@ -12,15 +14,9 @@
 
 <!-- ① 디자인(CSS) -->
 <style>
-/* 색상은 여기서 한 번에 바꿀 수 있어요 */
 :root{
-  --green:#3f5c2b;   /* 진초록 */
-  --or:#e0682d;      /* 주황(포인트) */
-  --bg:#f4f1ea;      /* 배경 */
-  --card:#fbfaf6;    /* 카드 배경 */
-  --tx:#1f2a1f;      /* 글자색 */
-  --mut:#5d6b55;     /* 흐린 글자색 */
-  --ln:#cfc9b6;      /* 테두리 */
+  --green:#3f5c2b; --or:#e0682d; --bg:#f4f1ea; --card:#fbfaf6;
+  --tx:#1f2a1f; --mut:#5d6b55; --ln:#cfc9b6;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.5}
@@ -30,14 +26,10 @@ h1{font-size:clamp(32px,6vw,48px);line-height:1.15;margin:8px 0 10px}
 h2{margin:4px 0 14px}
 .sub{color:var(--mut);margin:0 0 18px}
 .info{font-size:13px;color:var(--mut)}
-
-/* 버튼 */
 .btn{display:inline-block;border:2px solid var(--green);background:var(--green);color:#fff;padding:11px 26px;border-radius:999px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;margin:0 8px 8px 0}
 .btn.ghost{background:transparent;color:var(--green)}
 .btn.or{background:var(--or);border-color:var(--or)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
-
-/* 사진 올리는 상자 */
 .drop{border:3px dashed var(--ln);border-radius:18px;background:var(--card);padding:28px;text-align:center;cursor:pointer}
 .drop.over{border-color:var(--or);background:rgba(224,104,45,.08)}
 .panel{background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:16px}
@@ -45,11 +37,12 @@ h2{margin:4px 0 14px}
 .preview img{width:100%;max-height:62vh;object-fit:contain;display:block}
 .err{color:#c0392b;font-weight:700;min-height:24px;margin:8px 0}
 
-/* AI가 찾은 위치 박스 */
+/* AI가 찾은 박스: 가장 확실한 1개는 주황, 나머지는 초록 */
 .bb{position:absolute;border:3px dashed var(--or)}
+.bb.sub{border:2px dashed #6b8350}
 .bb span{position:absolute;left:-3px;bottom:100%;background:var(--or);color:#fff;font-size:12px;font-weight:700;padding:2px 8px;line-height:1.5;white-space:nowrap}
+.bb.sub span{background:#6b8350}
 
-/* 결과 화면 */
 .res{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:720px){.res{grid-template-columns:1fr}}
 .score{font-size:72px;font-weight:300;color:var(--green);line-height:1}
@@ -57,8 +50,7 @@ h2{margin:4px 0 14px}
 .row{margin:6px 0;font-size:14px}
 .row b{display:inline-block;width:84px}
 .row span{color:var(--mut)}
-
-/* 로딩 빙글빙글 */
+.found{margin:10px 0;padding:10px 12px;border-radius:10px;background:rgba(107,131,80,.12);font-size:14px}
 .spin{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:r .8s linear infinite;vertical-align:-3px;margin-right:6px}
 @keyframes r{to{transform:rotate(360deg)}}
 </style>
@@ -74,7 +66,6 @@ h2{margin:4px 0 14px}
     <h1>숨긴 사진을 올려<br>AI에게 들켜 보세요</h1>
     <p class="sub">캐릭터를 배경에 숨긴 사진을 올리고 제출하면, AI가 찾아서 점수를 매겨 줍니다.</p>
 
-    <!-- 사진 선택 상자 -->
     <div class="drop" id="drop">
       <div style="font-size:40px">📷</div>
       <p style="margin:6px 0;font-weight:700">사진을 끌어다 놓거나 눌러서 선택하세요</p>
@@ -82,7 +73,6 @@ h2{margin:4px 0 14px}
       <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>
     </div>
 
-    <!-- 미리보기 (사진을 고르면 나타남) -->
     <div id="pv" hidden style="margin-top:16px">
       <div class="panel">
         <div class="preview"><img id="img" alt="미리보기"></div>
@@ -107,6 +97,7 @@ h2{margin:4px 0 14px}
       <div>
         <span class="score" id="score">0</span> <span class="info">/ 100점</span><br>
         <span class="badge" id="title"></span>
+        <div class="found" id="found"></div>
         <div id="cm"></div>
         <p class="info" id="note"></p>
         <a class="btn" href="#upload">다시 도전</a>
@@ -118,12 +109,17 @@ h2{margin:4px 0 14px}
 
 <!-- ③ 동작(JavaScript) -->
 <script>
-/* ★ 서버가 완성되면 여기 주소만 바꾸세요 */
-const API_URL = '/detect';
+/* ★ 설정 ★ */
+// 백엔드 서버 주소 (맨 끝에 /detect 붙이기). 서버를 켜고 나온 주소로 바꾸세요.
+//   내 컴퓨터에서 테스트: 'http://localhost:8000/detect'
+//   GitHub Pages(https)에 올릴 때: 'https://...' 로 시작하는 주소만 사용 가능
+const API_URL  = 'http://localhost:8000/detect';
+const TIMEOUT_SEC = 60;       // YOLO가 오래 걸려도 이 시간까지 기다림
+const USE_MOCK = false;       // true: 서버 없이 가짜 결과로 화면만 확인 / false: 실제 서버 사용
 
 const MAX_MB = 10;
 const OK = ['image/jpeg','image/png','image/webp'];
-const $ = id => document.getElementById(id);   // id로 요소 찾는 짧은 함수
+const $ = id => document.getElementById(id);
 let file = null, objUrl = null, state = {};
 
 /* --- 1. 사진 선택 (클릭 / 드래그) --- */
@@ -162,28 +158,47 @@ $('submit').onclick = async () => {
   if (!file) return;
   const b = $('submit');
   b.disabled = true; b.innerHTML = '<span class="spin"></span>AI가 찾는 중…';
-  let data, mock = false;
+  $('err').textContent = '';
+  let data;
   try {
-    const fd = new FormData();
-    fd.append('image', file);                         // 서버에서는 'image' 이름으로 받음
-    const res = await fetch(API_URL, { method:'POST', body: fd });
-    if (!res.ok) throw new Error('server ' + res.status);
-    data = await res.json();
+    if (USE_MOCK) {
+      await new Promise(r => setTimeout(r, 900));
+      data = mockResult();
+    } else {
+      const fd = new FormData();
+      fd.append('image', file);                       // 서버에서는 'image' 이름으로 받음
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), TIMEOUT_SEC * 1000);
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST', body: fd, signal: ctrl.signal,
+          headers: { 'ngrok-skip-browser-warning': 'true' }   // ngrok 무료 주소 사용 시 필요
+        });
+        if (!res.ok) throw new Error('서버 오류 (' + res.status + ')');
+        data = await res.json();                              // 서버가 준 JSON 값
+      } finally { clearTimeout(timer); }
+    }
   } catch (e) {
-    mock = true; data = mockResult();                 // 서버 없으면 임시 결과로 대체
-    await new Promise(r => setTimeout(r, 900));
+    // 실패하면 가짜 결과로 덮지 않고 이유를 보여줌
+    $('err').textContent = e.name === 'AbortError'
+      ? `서버 응답이 ${TIMEOUT_SEC}초 안에 오지 않았어요. 잠시 후 다시 시도해 주세요.`
+      : e.message.startsWith('서버 오류')
+        ? '분석에 실패했어요: ' + e.message
+        : '서버에 연결하지 못했어요. 서버가 켜져 있는지, 코드의 API_URL 주소가 맞는지 확인해 주세요.';
+    b.disabled = false; b.textContent = '제출하고 평가받기';
+    return;
   }
-  state.data = data; state.mock = mock; state.src = objUrl;
+  state.data = data; state.src = objUrl;
   b.disabled = false; b.textContent = '제출하고 평가받기';
   location.hash = 'result';
 };
 
-/* 서버 연결 전 확인용 임시 결과 (서버가 보내줄 JSON 형식과 같음) */
+/* 서버가 보내줄 JSON 형식과 같은 임시 데이터 (USE_MOCK = true 일 때만 사용) */
 function mockResult(){
   const w = state.w || 600, h = state.h || 400;
   return {
-    bbox: [w*.3, h*.2, w*.7, h*.85],   // [왼쪽x, 위y, 오른쪽x, 아래y] 픽셀
-    confidence: .87,
+    model: 'mock',
+    objects: [{class_name:'person', confidence:.87, bbox:[w*.3, h*.2, w*.7, h*.85]}],
     total_score: 82,
     abilities: {'가림 정도':75,'색 동화':85,'경계 융합':60,'탐지 회피':90,'위치 센스':45},
     title: '소심한 은둔 고수',
@@ -196,36 +211,60 @@ function renderResult(){
   const d = state.data;
   if (!d) { location.hash = 'upload'; return; }
 
-  // 사진 + AI 탐지 박스
+  // AI가 찾은 물체 목록 (objects 가 없으면 예전 형식 bbox/confidence 사용)
+  let list = (d.objects && d.objects.length) ? d.objects.slice()
+           : (d.bbox ? [{class_name:'', confidence:d.confidence, bbox:d.bbox}] : []);
+  list.sort((a, b) => b.confidence - a.confidence);       // 가장 확실한 것이 맨 앞
+
+  // 사진 + 박스들
   const s = $('shot'); s.innerHTML = '';
   const im = document.createElement('img');
   im.src = state.src; im.style.cssText = 'width:100%;display:block'; s.appendChild(im);
   const place = () => {
-    const [x1,y1,x2,y2] = d.bbox, W = im.naturalWidth || state.w, H = im.naturalHeight || state.h;
-    const bx = document.createElement('div'); bx.className = 'bb';
-    bx.style.cssText = `left:${x1/W*100}%;top:${y1/H*100}%;width:${(x2-x1)/W*100}%;height:${(y2-y1)/H*100}%`;
-    bx.innerHTML = `<span>탐지 신뢰도 ${Number(d.confidence).toFixed(2)}</span>`;
-    s.appendChild(bx);
+    const W = im.naturalWidth || state.w, H = im.naturalHeight || state.h;
+    list.forEach((o, i) => {
+      const [x1,y1,x2,y2] = o.bbox;
+      const bx = document.createElement('div');
+      bx.className = 'bb' + (i === 0 ? '' : ' sub');
+      bx.style.cssText = `left:${x1/W*100}%;top:${y1/H*100}%;width:${(x2-x1)/W*100}%;height:${(y2-y1)/H*100}%`;
+      const label = (o.class_name ? o.class_name + ' ' : '탐지 신뢰도 ') + Number(o.confidence).toFixed(2);
+      bx.innerHTML = `<span>${label}</span>`;
+      s.appendChild(bx);
+    });
   };
-  im.complete ? place() : im.onload = place;
+  if (list.length) { im.complete ? place() : im.onload = place; }
 
-  // 점수, 칭호, 코멘트
-  $('score').textContent = d.total_score;
-  $('title').textContent = d.title;
-  const k = Object.keys(d.abilities), v = Object.values(d.abilities);
+  // 점수, 칭호
+  $('score').textContent = d.total_score ?? '-';
+  $('title').textContent = d.title || '';
+  $('title').hidden = !d.title;
+
+  // AI가 뭘 찾았는지 한 줄 요약
+  $('found').textContent = list.length
+    ? `AI가 ${list.length}개를 찾았어요: ` + list.map(o => `${o.class_name || '대상'} (${Number(o.confidence).toFixed(2)})`).join(', ')
+    : 'AI가 아무것도 찾지 못했어요. 완벽하게 숨었다는 뜻일 수 있어요! 🎉';
+
+  // 능력치 코멘트 + 오각형 그래프 (abilities 가 있을 때만)
+  const ab = d.abilities || {};
+  const k = Object.keys(ab), v = Object.values(ab);
   $('cm').innerHTML = k.map(n => `<div class="row"><b>${n}</b><span>${(d.comments && d.comments[n]) || ''}</span></div>`).join('');
-  $('note').textContent = state.mock ? '※ 서버가 연결되지 않아 임시 결과를 보여주고 있어요.' : '';
+  $('radar').hidden = k.length < 3;
+  if (k.length >= 3) {
+    const cx = 160, cy = 150, R = 105;
+    const pts = f => k.map((_, i) => { const t = -Math.PI/2 + i*2*Math.PI/k.length; return [cx+Math.cos(t)*R*f, cy+Math.sin(t)*R*f]; });
+    let g = '';
+    [.25,.5,.75,1].forEach(f => g += `<polygon points="${pts(f).join(' ')}" fill="none" stroke="#cfc9b6"/>`);
+    const dp = pts(1).map((q,i) => [cx+(q[0]-cx)*v[i]/100, cy+(q[1]-cy)*v[i]/100]);
+    g += `<polygon points="${dp.join(' ')}" fill="rgba(107,131,80,.4)" stroke="#3f5c2b" stroke-width="2.5"/>`;
+    dp.forEach(q => g += `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#3f5c2b"/>`);
+    pts(1.22).forEach((q,i) => g += `<text x="${q[0]}" y="${q[1]}" text-anchor="middle" font-size="12" fill="#1f2a1f">${k[i]} ${v[i]}</text>`);
+    $('radar').innerHTML = g;
+  }
 
-  // 오각형(레이더) 그래프
-  const cx = 160, cy = 150, R = 105;
-  const pts = f => k.map((_, i) => { const t = -Math.PI/2 + i*2*Math.PI/k.length; return [cx+Math.cos(t)*R*f, cy+Math.sin(t)*R*f]; });
-  let g = '';
-  [.25,.5,.75,1].forEach(f => g += `<polygon points="${pts(f).join(' ')}" fill="none" stroke="#cfc9b6"/>`);
-  const dp = pts(1).map((q,i) => [cx+(q[0]-cx)*v[i]/100, cy+(q[1]-cy)*v[i]/100]);
-  g += `<polygon points="${dp.join(' ')}" fill="rgba(107,131,80,.4)" stroke="#3f5c2b" stroke-width="2.5"/>`;
-  dp.forEach(q => g += `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#3f5c2b"/>`);
-  pts(1.22).forEach((q,i) => g += `<text x="${q[0]}" y="${q[1]}" text-anchor="middle" font-size="12" fill="#1f2a1f">${k[i]} ${v[i]}</text>`);
-  $('radar').innerHTML = g;
+  // 안내 문구: 아직 캐릭터 전용 모델 전이면 알려줌
+  const pre = d.model && !/best/i.test(d.model) && d.model !== 'mock';
+  $('note').textContent = d.model === 'mock' ? '※ 가짜 결과(USE_MOCK)를 보여주고 있어요.'
+    : pre ? `※ 아직 캐릭터 전용 모델(best.pt) 전이라, 기본 모델(${d.model})이 일반 사물 기준으로 찾은 결과예요.` : '';
 }
 
 /* --- 4. 화면 전환 (주소 뒤 #upload / #result) --- */
