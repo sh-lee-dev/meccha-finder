@@ -57,17 +57,19 @@ flowchart LR
 ```
 meccha-finder/
 ├── README.md
-├── requirements.txt          # 예정
+├── requirements.txt          # 서버 실행 패키지
 ├── docs/
 │   ├── requirements.md       # 요구사항
 │   ├── decisions.md          # 결정 기록
 │   ├── score-schema.md       # 모듈 간 데이터 형식 (스키마 설명)
 │   └── team-guide.md         # 팀 지침서
 ├── schemas/                  # JSON Schema와 예시 JSON (모듈 간 약속의 기준)
+├── frontend/                 # 화면 (index.html)
 ├── src/
-│   ├── model/                # YOLO 학습·추론
-│   ├── score/                # 점수 알고리즘
-│   └── ui/                   # 화면·통합
+│   ├── api/                  # API 서버 (FastAPI, POST /detect)
+│   ├── model/                # YOLO 추론 (detect)
+│   └── score/                # 점수 계산 (evaluate), 스키마 클래스
+├── tests/                    # API 테스트
 ├── scripts/
 │   └── prepare_dataset.py    # 프레임 추출, train/val 분할 (추가 예정)
 └── data/                     # Git 제외, Drive에서 내려받아 사용
@@ -84,7 +86,12 @@ python -m venv .venv
 # macOS/Linux: source .venv/bin/activate
 
 pip install -r requirements.txt
+
+# 서버 실행 → http://127.0.0.1:8000
+python -m uvicorn src.api.main:app --reload --port 8000
 ```
+
+설정과 테스트 방법은 [API 서버 실행 가이드](docs/api.md)에 있어요.
 
 실습실에서는 매번 환경 설정이 필요하므로 체크리스트를 [팀 지침서](docs/team-guide.md#3-실습실에서-시작할-때-체크리스트)에 따로 정리해 두었습니다.
 
@@ -126,4 +133,5 @@ yolo detect predict model=runs/detect/train/weights/best.pt source=<이미지 �
 - [요구사항](docs/requirements.md)
 - [결정 기록](docs/decisions.md)
 - [데이터 스키마](docs/score-schema.md)
+- [API 서버 실행 가이드](docs/api.md)
 - [팀 지침서](docs/team-guide.md)
