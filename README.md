@@ -87,7 +87,7 @@ python -m venv .venv
 
 pip install -r requirements.txt
 
-# 서버 실행 → http://127.0.0.1:8000
+# 학습한 best.pt를 레포 폴더에 넣고 서버 실행 → http://127.0.0.1:8000
 python -m uvicorn src.api.main:app --reload --port 8000
 ```
 

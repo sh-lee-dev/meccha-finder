@@ -4,7 +4,7 @@ meccha finder - YOLO 탐지 모듈
 사진을 받아 schemas/detection.schema.json 형식의 DetectionResult 를 돌려줍니다.
 
 설정 (환경변수, 없으면 기본값):
-    MECCHA_WEIGHTS     가중치 파일 경로        기본: yolo26n.pt (일반 사물용 기본 모델)
+    MECCHA_WEIGHTS     가중치 파일 경로        기본: 레포 루트의 best.pt, 없으면 yolo26n.pt (일반 사물용)
     MECCHA_CONF        찾았다/못 찾았다 기준값  기본: 0.25
     MECCHA_IMGSZ       추론 해상도             기본: 640
     MECCHA_ANY_CLASS   1 이면 모든 클래스를 캐릭터로 취급 (기본 모델로 흐름만 테스트할 때)
@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 from PIL import Image
@@ -25,8 +26,23 @@ from PIL import Image
 from src.score.schema import CLASS_NAME, DEFAULT_CONF_THRESHOLD, Detection, DetectionResult
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FALLBACK_WEIGHTS = "yolo26n.pt"
+
+
 def _env_bool(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def default_weights() -> str:
+    """가중치 고르는 순서: MECCHA_WEIGHTS 환경변수 → 레포 루트의 best.pt → yolo26n.pt (기본 모델)"""
+    env = os.getenv("MECCHA_WEIGHTS", "").strip()
+    if env:
+        return env
+    best = REPO_ROOT / "best.pt"
+    if best.is_file():
+        return str(best)
+    return FALLBACK_WEIGHTS
 
 
 class Detector:
@@ -37,7 +53,7 @@ class Detector:
         imgsz: Optional[int] = None,
         any_class: Optional[bool] = None,
     ):
-        self.weights = weights or os.getenv("MECCHA_WEIGHTS", "yolo26n.pt")
+        self.weights = weights or default_weights()
         self.conf = float(conf if conf is not None else os.getenv("MECCHA_CONF", DEFAULT_CONF_THRESHOLD))
         self.imgsz = int(imgsz if imgsz is not None else os.getenv("MECCHA_IMGSZ", 640))
         self.any_class = any_class if any_class is not None else _env_bool("MECCHA_ANY_CLASS")

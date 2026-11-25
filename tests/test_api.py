@@ -96,3 +96,16 @@ def test_status_and_home(client):
     c = client()
     assert c.get("/api/status").json()["status"] == "online"
     assert c.get("/").status_code in (200, 404)
+
+
+def test_default_weights_order(monkeypatch, tmp_path):
+    """가중치 선택 순서: 환경변수 → 레포 루트 best.pt → yolo26n.pt"""
+    import src.model.detect as det
+
+    monkeypatch.delenv("MECCHA_WEIGHTS", raising=False)
+    monkeypatch.setattr(det, "REPO_ROOT", tmp_path)
+    assert det.default_weights() == "yolo26n.pt"
+    (tmp_path / "best.pt").write_bytes(b"x")
+    assert det.default_weights() == str(tmp_path / "best.pt")
+    monkeypatch.setenv("MECCHA_WEIGHTS", "other.pt")
+    assert det.default_weights() == "other.pt"

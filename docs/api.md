@@ -23,13 +23,13 @@ python -m uvicorn src.api.main:app --reload --port 8000
 - API 문서(직접 사진 올려 보기): http://127.0.0.1:8000/docs
 - 서버 상태: http://127.0.0.1:8000/api/status
 
-처음 실행하면 기본 모델(`yolo26n.pt`)을 자동으로 내려받아요. 서버를 켤 때 모델을 미리 한 번 돌려 두기 때문에 시작에 몇 초 걸려요.
+**레포 폴더(최상위)에 `best.pt`를 넣어 두면 자동으로 그 모델을 써요.** `best.pt`는 `.gitignore`에 걸려 있어서 커밋되지 않으니, 팀 Drive에서 받아 각자 넣어 주세요. `best.pt`가 없으면 기본 모델(`yolo26n.pt`)을 자동으로 내려받아 쓰는데, 이 모델은 캐릭터를 찾지 못해요. 서버를 켤 때 모델을 미리 한 번 돌려 두기 때문에 시작에 몇 초 걸려요.
 
 ## 2. 설정 (환경변수)
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
-| `MECCHA_WEIGHTS` | `yolo26n.pt` | 가중치 파일 경로. 학습한 `best.pt`가 생기면 이것만 바꾸면 돼요 |
+| `MECCHA_WEIGHTS` | 레포 루트의 `best.pt`, 없으면 `yolo26n.pt` | 다른 가중치를 쓰고 싶을 때만 지정 (예: `best_v2.pt` 비교) |
 | `MECCHA_CONF` | `0.25` | 이 신뢰도 이상이면 "찾았다" |
 | `MECCHA_IMGSZ` | `640` | 추론 해상도. 캐릭터가 작으면 `1280` |
 | `MECCHA_ANY_CLASS` | 꺼짐 | `1`이면 모든 클래스를 캐릭터로 취급 (기본 모델로 흐름만 테스트할 때) |
@@ -38,7 +38,7 @@ python -m uvicorn src.api.main:app --reload --port 8000
 Windows PowerShell에서 설정하는 예:
 
 ```powershell
-$env:MECCHA_WEIGHTS = "C:\Users\PC\Desktop\best.pt"
+$env:MECCHA_WEIGHTS = "best_v2.pt"   # 다른 가중치로 비교할 때만
 python -m uvicorn src.api.main:app --port 8000
 ```
 
