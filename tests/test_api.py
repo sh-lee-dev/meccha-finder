@@ -77,6 +77,15 @@ def test_errors(client, kwargs, status, code):
     assert r.json()["error"]["code"] == code
 
 
+def test_broken_image_with_ultralytics_loaded(client):
+    """ultralytics 를 불러오면 Image.open 이 바뀌어 다른 예외가 날 수 있음 → 그래도 400"""
+    pytest.importorskip("ultralytics")
+    import ultralytics  # noqa: F401  (Image.open 패치 적용)
+    r = client().post("/detect", files={"image": ("a.png", b"not really a png", "image/png")})
+    assert r.status_code == 400
+    assert r.json()["error"]["code"] == "INVALID_IMAGE"
+
+
 def test_model_error(client):
     r = client(fail=True).post("/detect", files={"image": ("a.png", png(), "image/png")})
     assert r.status_code == 500

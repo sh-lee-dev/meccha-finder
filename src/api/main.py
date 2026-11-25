@@ -25,7 +25,7 @@ from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps
 
 from src.model.detect import Detector
 from src.score.evaluate import evaluate
@@ -89,7 +89,9 @@ async def detect(
         return _error(400, "INVALID_IMAGE", "JPG, PNG, WEBP 사진만 올릴 수 있어요.")
     try:
         pil = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
-    except (UnidentifiedImageError, OSError):
+    except Exception:
+        # 사진이 아닌 파일은 PIL 오류 외에도 다른 예외가 날 수 있음
+        # (예: ultralytics 가 Image.open 을 바꿔서 HEIF 로 다시 열려다 ModuleNotFoundError)
         return _error(400, "INVALID_IMAGE", "사진을 읽을 수 없어요. JPG, PNG, WEBP 파일로 다시 올려 주세요.")
 
     # 2. 탐지
