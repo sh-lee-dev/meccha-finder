@@ -19,7 +19,7 @@
 | 구분 | 기능 | 단계 |
 |---|---|---|
 | 탐지 | 이미지에서 캐릭터 위치(박스)와 신뢰도(confidence) 추출 | MVP |
-| 평가 | 탐지 신뢰도 + 찾는 데 걸린 시간 기반 점수 계산 | MVP |
+| 평가 | 탐지 박스·신뢰도와 사진으로 능력치 5개와 은폐 총점 계산 | MVP |
 | 결과 | 총점, 평가 기준별 코멘트, 오각형/육각형 능력치 차트 | 3~4주차 |
 | 시각화 | 캐릭터 윤곽선 표시 | 확장 (세그멘테이션 전환 필요) |
 
@@ -28,28 +28,38 @@
 ```mermaid
 flowchart LR
     A[이미지 입력] --> B[YOLO 탐지<br/>박스 + 신뢰도]
-    B --> C[점수 계산<br/>신뢰도 + 소요 시간]
+    B --> C[점수 계산<br/>능력치 5개 → 총점]
     C --> D[결과 화면<br/>총점 / 코멘트 / 능력치]
 ```
 
 각 단계는 팀원별 모듈로 나뉘어 있고, 모듈 사이의 입출력 형식은 [팀 지침서](docs/team-guide.md#6-모듈-간-입출력-약속)에 정의합니다.
 
-## 4. 점수 평가 방식 (초안)
+## 4. 점수 평가 방식 (v0)
 
-- 입력: 탐지 신뢰도, 발견 소요 시간 (측정 방식은 [요구사항](docs/requirements.md#7-미결정-사항)에서 확정 예정)
-- 직관: 신뢰도가 낮을수록, 찾는 데 오래 걸릴수록 높은 점수
-- 출력: 0~100 총점, 기준별 능력치, 기준별 코멘트
-- 세부 공식과 능력치 축은 3주차에 팀 합의 후 확정합니다.
+YOLO가 찾은 박스를 기준으로 능력치 5개(0~100, 높을수록 잘 숨음)를 계산하고, 평균을 총점으로 씁니다.
+
+| 능력치 | 보여주려는 것 | 계산 (v0) |
+|---|---|---|
+| 탐지 회피 | AI를 얼마나 속였나 (결과) | `(1 - 신뢰도) × 100` |
+| 색 동화 | 색 선택 | 박스 안과 주변의 색 분포 유사도 |
+| 질감 동화 | 무늬 선택 | 박스 안과 주변의 엣지·무늬 분포 유사도 |
+| 노출 크기 | 몸 숨기기 | 사진 대비 박스가 작을수록 높게 |
+| 배경 복잡도 | 장소 선택 | 주변 엣지 밀도가 높을수록 높게 |
+
+- AI가 못 찾으면 점수는 `null`(판정 불가)로 보내고, 화면 표현은 프론트가 정합니다.
+- 찾는 데 걸린 시간·모델 추론 시간은 점수에 쓰지 않습니다. 이유는 [결정 기록](docs/decisions.md)에 있어요.
+- 자세한 형식과 근거: [데이터 스키마](docs/score-schema.md)
 
 ## 5. 기술 스택
 
 | 영역 | 사용 기술 |
 |---|---|
 | 언어 | Python |
-| 객체 탐지 | Ultralytics YOLO (시작 모델: `yolo11n`) |
+| 객체 탐지 | Ultralytics YOLO (`yolo26n` 기반 학습, 가중치 `best.pt`) |
 | 영상/이미지 처리 | OpenCV |
 | 라벨링 | Roboflow 등 (YOLO 형식으로 내보내기) |
-| UI | 미정 |
+| 서버 | FastAPI (`POST /detect`) |
+| UI | HTML·JavaScript (서버가 함께 제공) |
 | 협업 | GitHub (코드·핵심 문서), Google Drive (일정·진행·회의록·데이터·모델 가중치) |
 
 ## 6. 프로젝트 구조
@@ -57,19 +67,21 @@ flowchart LR
 ```
 meccha-finder/
 ├── README.md
-├── requirements.txt          # 예정
+├── requirements.txt          # 서버 실행 패키지
 ├── docs/
 │   ├── requirements.md       # 요구사항
 │   ├── decisions.md          # 결정 기록
 │   ├── score-schema.md       # 모듈 간 데이터 형식 (스키마 설명)
 │   └── team-guide.md         # 팀 지침서
 ├── schemas/                  # JSON Schema와 예시 JSON (모듈 간 약속의 기준)
+├── frontend/                 # 화면 (index.html)
 ├── src/
-│   ├── model/                # YOLO 학습·추론
-│   ├── score/                # 점수 알고리즘
-│   └── ui/                   # 화면·통합
+│   ├── api/                  # API 서버 (FastAPI, POST /detect)
+│   ├── model/                # YOLO 추론 (detect)
+│   └── score/                # 점수 계산 (evaluate), 스키마 클래스
+├── tests/                    # API 테스트
 ├── scripts/
-│   └── prepare_dataset.py    # 프레임 추출, train/val 분할 (추가 예정)
+│   └── evaluate_folder.py    # 사진 폴더 일괄 평가 (모델 성능, 점수 분포)
 └── data/                     # Git 제외, Drive에서 내려받아 사용
 ```
 
@@ -84,14 +96,19 @@ python -m venv .venv
 # macOS/Linux: source .venv/bin/activate
 
 pip install -r requirements.txt
+
+# 학습한 best.pt를 레포 폴더에 넣고 서버 실행 → http://127.0.0.1:8000
+python -m uvicorn src.api.main:app --reload --port 8000
 ```
+
+설정과 테스트 방법은 [API 서버 실행 가이드](docs/api.md)에 있어요.
 
 실습실에서는 매번 환경 설정이 필요하므로 체크리스트를 [팀 지침서](docs/team-guide.md#3-실습실에서-시작할-때-체크리스트)에 따로 정리해 두었습니다.
 
 학습과 예측 (데이터셋 준비 후):
 
 ```bash
-yolo detect train data=data/meccha-dataset/data.yaml model=yolo11n.pt epochs=50 imgsz=640
+yolo detect train data=data/meccha-dataset/data.yaml model=yolo26n.pt epochs=100 imgsz=640
 yolo detect predict model=runs/detect/train/weights/best.pt source=<이미지 경로>
 ```
 
@@ -115,15 +132,17 @@ yolo detect predict model=runs/detect/train/weights/best.pt source=<이미지 �
 
 ## 10. 팀
 
-| 이름 | 역할 | 브랜치 |
+| 이름 | 역할 | 브랜치 (작업마다 새로) |
 |---|---|---|
-| 이상현 (조장) | 점수 알고리즘·백엔드 | `score/algorithm` |
-| 이한울 | YOLO·모델 | `yolo/model` |
-| 한승우 | UI·통합 | `ui/merge` |
+| 이상현 (조장) | 점수 알고리즘·백엔드 | `score/…` (예: `score/schema`, `score/api`) |
+| 이한울 | YOLO·모델 | `yolo/…` (예: `yolo/train`) |
+| 한승우 | UI·통합 | `ui/…` (예: `ui/schema-connect`) |
 
 ## 11. 문서
 
 - [요구사항](docs/requirements.md)
 - [결정 기록](docs/decisions.md)
 - [데이터 스키마](docs/score-schema.md)
+- [API 서버 실행 가이드](docs/api.md)
+- [일괄 평가 가이드](docs/evaluate.md)
 - [팀 지침서](docs/team-guide.md)
