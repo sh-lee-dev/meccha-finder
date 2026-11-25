@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  메챠 카멜레온 찾기 - 프론트엔드 (백엔드는 app.py)
-  사용법: ① python frontend/app.py 실행 → http://127.0.0.1:8000 접속 (권장)
-          ② 파일을 더블클릭해 열어도 동작 (이때는 로컬 8000번 서버로 접속)
-          ③ 외부 서버(ngrok 등)를 쓰면 아래 API_URL 규칙 참고
+  메챠 카멜레온 찾기 - 프론트엔드 (GitHub Pages용, 백엔드는 별도 서버)
+  사용법: ① 아래 <script> 맨 위 API_URL 을 백엔드 서버 주소로 바꾸기
+          ② 이 파일을 GitHub에 올리기 (더블클릭해서 열어도 동작)
   이 화면은 백엔드가 주는 JSON 값만 받아서 그립니다. (YOLO·점수 계산은 전부 서버)
+  지원 형식: ① 점수 스키마 v0.1  ② 예전 형식(app.py: objects/bbox/abilities 딕셔너리) - 자동 판별
   구성: ① <style> 디자인  ② <body> 화면 구조  ③ <script> 동작
 -->
 <html lang="ko">
@@ -20,7 +20,6 @@
   --tx:#1f2a1f; --mut:#5d6b55; --ln:#cfc9b6;
 }
 *{box-sizing:border-box}
-[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--tx);font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.5}
 .wrap{max-width:860px;margin:0 auto;padding:24px 20px}
 .tag{color:var(--or);font-weight:700;font-size:14px;margin:0}
@@ -50,12 +49,17 @@ h2{margin:4px 0 14px}
 .score{font-size:72px;font-weight:300;color:var(--green);line-height:1}
 .badge{display:inline-block;background:var(--or);color:#fff;font-weight:700;border-radius:999px;padding:4px 14px;font-size:14px;margin:8px 0 12px}
 .row{margin:6px 0;font-size:14px}
-.row b{display:inline-block;width:84px}
+.row b{display:inline-block;width:100px}
 .row span{color:var(--mut)}
 .found{margin:10px 0;padding:10px 12px;border-radius:10px;background:rgba(107,131,80,.12);font-size:14px}
-.found.miss{background:rgba(224,104,45,.12)}
 .spin{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:r .8s linear infinite;vertical-align:-3px;margin-right:6px}
 @keyframes r{to{transform:rotate(360deg)}}
+
+/* ✨ 애니메이션 효과 (켜고 끄기·속도는 아래 JS 맨 위 ANIM 설정에서) */
+.bb.anim{animation:boxIn .55s cubic-bezier(.2,1.4,.4,1) both;animation-delay:.1s;transform-origin:center}
+@keyframes boxIn{from{opacity:0;transform:scale(1.25)}to{opacity:1;transform:scale(1)}}
+.row.anim{opacity:0;animation:rowIn .5s ease forwards;animation-delay:var(--d,0ms)}
+@keyframes rowIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
 </style>
 </head>
 
@@ -113,22 +117,37 @@ h2{margin:4px 0 14px}
 <!-- ③ 동작(JavaScript) -->
 <script>
 /* ★ 설정 ★ */
-// app.py 가 이 페이지를 직접 서빙하므로 기본값은 같은 주소의 '/detect' 입니다.
-//   - 파일을 더블클릭해 열었을 때(file://)는 로컬 서버(8000번)로 접속
-//   - 외부 서버(ngrok 등)를 쓸 때는 window.MECCHA_API_URL 에 전체 주소를 지정
-//     예) window.MECCHA_API_URL = 'https://xxxx.ngrok-free.app/detect'; 를 먼저 지정
-const API_URL = window.MECCHA_API_URL
-  ? window.MECCHA_API_URL
-  : (location.protocol === 'file:'
-      ? 'http://localhost:8000/detect'
-      : new URL('/detect', location.origin).toString());
+// 백엔드 서버 주소 (맨 끝에 /detect 붙이기). 서버를 켜고 나온 주소로 바꾸세요.
+//   내 컴퓨터에서 테스트: 'http://localhost:8000/detect'
+//   GitHub Pages(https)에 올릴 때: 'https://...' 로 시작하는 주소만 사용 가능
+const API_URL  = 'http://localhost:8000/detect';
 const TIMEOUT_SEC = 60;       // YOLO가 오래 걸려도 이 시간까지 기다림
-const USE_MOCK = false;       // true: 서버 없이 가짜 결과로 화면만 확인 / false: 실제 서버 사용
+const USE_MOCK = false;       // true: 서버 없이 예시 JSON으로 화면만 확인 / false: 실제 서버 사용
+const MOCK_FOUND = true;      // USE_MOCK = true 일 때: true=찾은 경우 예시, false=못 찾은 경우 예시
+
+/* ===== ✨ 애니메이션 설정 (여기 숫자만 바꾸면 됩니다) ===== */
+const ANIM = {
+  on: true,          // false 로 바꾸면 모든 움직임이 꺼지고 바로 결과가 나옴
+  radarDelay: 200,   // 결과 화면이 뜬 뒤 움직임이 시작될 때까지 기다리는 시간 (ms, 1000 = 1초)
+  radarMs: 1000,     // 오각형 그래프가 가운데에서 펼쳐지는 시간 (ms)
+  ease: 'out',       // 움직임 모양: 'out' = 점점 느려짐 / 'back' = 살짝 튕김 / 'linear' = 일정한 속도
+  countUp: true,     // 총점 숫자가 0부터 올라감
+  countMs: 1000,     // 총점이 올라가는 시간 (ms)
+  rows: true,        // 능력치 줄이 하나씩 나타남
+  rowStagger: 120,   // 줄과 줄 사이 간격 (ms)
+  box: true          // AI가 찾은 박스가 톡 하고 나타남
+};
+// 컴퓨터 설정에서 '동작 줄이기'를 켠 사람에게는 자동으로 끔
+if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) ANIM.on = false;
 
 const MAX_MB = 10;
 const OK = ['image/jpeg','image/png','image/webp'];
 const $ = id => document.getElementById(id);
 let file = null, objUrl = null, state = {};
+class ApiError extends Error {}                          // 서버가 보낸 error.message 를 그대로 보여주기 위한 표시
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// 능력치 key → 화면에 보여줄 이름 (서버가 준 label 보다 우선. 여기서 자유롭게 바꾸세요)
+const LABELS = { evasion:'탐지 회피', color_blend:'색 동화', texture_blend:'질감 동화', exposure:'노출 크기', clutter:'배경 복잡도' };
 
 /* --- 1. 사진 선택 (클릭 / 드래그) --- */
 const drop = $('drop'), inp = $('file');
@@ -182,26 +201,18 @@ $('submit').onclick = async () => {
           method: 'POST', body: fd, signal: ctrl.signal,
           headers: { 'ngrok-skip-browser-warning': 'true' }   // ngrok 무료 주소 사용 시 필요
         });
-        if (!res.ok) {                                        // 실패: 서버가 준 error.message 사용
-          let msg = '분석에 실패했어요 (HTTP ' + res.status + ')';
-          try {
-            const err = await res.json();
-            if (err && err.error && err.error.message) msg = err.error.message;
-          } catch (_) { /* JSON이 아니면 기본 문구 */ }
-          throw new Error(msg);
-        }
-        data = await res.json();                              // Score response 스키마
+        let body = null;
+        try { body = await res.json(); } catch (_) {}         // 서버가 준 JSON 값
+        data = toData(res.ok, res.status, body);              // 오류 확인 + 두 가지 형식을 하나로 통일
       } finally { clearTimeout(timer); }
     }
   } catch (e) {
-    // 실패하면 가짜 결과로 덮지 않고, 서버가 준 error.message(또는 연결 오류 안내)를 보여줌
-    let msg = e.message || '알 수 없는 오류가 났어요.';
-    if (e.name === 'AbortError') {
-      msg = `서버 응답이 ${TIMEOUT_SEC}초 안에 오지 않았어요. 잠시 후 다시 시도해 주세요.`;
-    } else if (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(msg)) {
-      msg = '서버에 연결하지 못했어요. 서버가 켜져 있는지, 주소가 맞는지 확인해 주세요.';
-    }
-    $('err').textContent = msg;
+    // 실패하면 가짜 결과로 덮지 않고 이유를 보여줌
+    $('err').textContent = e.name === 'AbortError'
+      ? `서버 응답이 ${TIMEOUT_SEC}초 안에 오지 않았어요. 잠시 후 다시 시도해 주세요.`
+      : e instanceof ApiError
+        ? e.message
+        : '서버에 연결하지 못했어요. 서버가 켜져 있는지, 코드의 API_URL 주소가 맞는지 확인해 주세요.';
     b.disabled = false; b.textContent = '제출하고 평가받기';
     return;
   }
@@ -210,97 +221,176 @@ $('submit').onclick = async () => {
   location.hash = 'result';
 };
 
-/* 서버 응답과 같은 형식의 임시 데이터 (USE_MOCK = true 일 때만 사용)
-   구조는 schemas/examples/response_found.json 과 같습니다. */
-function mockResult(){
-  const w = state.w || 1390, h = state.h || 781;
+/* --- 서버 응답을 화면이 쓰는 한 가지 형식으로 통일 ---
+   ① 점수 스키마 v0.1 : found / detection / abilities(배열)            → 그대로 사용
+   ② 예전 형식(app.py) : objects / bbox / abilities(딕셔너리) / comments → 스키마 모양으로 변환 */
+const validBox = b => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite);
+
+function normalize(d){
+  if (d.detection !== undefined || Array.isArray(d.abilities)) {
+    return { ...d, found: typeof d.found === 'boolean' ? d.found : !!d.detection, others: [] };
+  }
+  let objs = (d.objects && d.objects.length) ? d.objects
+           : (d.bbox ? [{ class_name:'', confidence:d.confidence, bbox:d.bbox }] : []);
+  objs = objs.filter(o => validBox(o.bbox)).sort((a, b) => b.confidence - a.confidence);
+  const found = typeof d.found === 'boolean' ? d.found : objs.length > 0;
+  const top = found ? (objs[0] || null) : null;
+  const ab = d.abilities || {};
   return {
-    schema_version: '0.1',
-    found: true,
-    image: { width: w, height: h },
-    detection: { bbox: [w*.30, h*.22, w*.39, h*.39], confidence: 0.87 },
-    total_score: 50,
-    title: '아쉬운 견습 카멜레온',
-    abilities: [
+    schema_version: 'legacy', found,
+    image: Array.isArray(d.image_size) ? { width:d.image_size[0], height:d.image_size[1] } : undefined,
+    detection: top ? { bbox:top.bbox, confidence:top.confidence } : null,
+    others: found ? objs.slice(1) : [],                              // 대표 박스 외에 찾은 것들
+    total_score: found ? (d.total_score ?? null) : null,             // 못 찾으면 0점 대신 '-'
+    title: found ? (d.title || null) : null,
+    abilities: Object.keys(ab).map(name => {
+      const v = ab[name], sc = (v && typeof v === 'object') ? v.score : v;
+      return { key:name, label:name, score:(found && Number.isFinite(sc)) ? sc : null,
+               comment:(d.comments && d.comments[name]) || '' };
+    }),
+    meta: { model: d.model }
+  };
+}
+
+function toData(ok, status, body){
+  const em = body && body.error && (typeof body.error === 'string' ? body.error : body.error.message);
+  if (!ok || (body && body.success === false)) throw new ApiError(em || '서버 오류 (' + status + ')');
+  if (!body || typeof body !== 'object' ||
+      !['found','objects','bbox','detection','abilities','total_score'].some(k => k in body))
+    throw new ApiError('서버 응답 형식을 알 수 없어요. (found / objects / abilities 가 없음)');
+  return normalize(body);
+}
+
+/* 점수 스키마(v0.1) 예시 JSON (USE_MOCK = true 일 때만 사용) */
+function mockResult(){
+  const image = { width: state.w || 1390, height: state.h || 781 };
+  const keys = ['evasion','color_blend','texture_blend','exposure','clutter'];
+  if (!MOCK_FOUND) {
+    return { schema_version:'0.1', found:false, image, detection:null, total_score:null, title:null,
+      abilities: keys.map(key => ({ key, label: LABELS[key], score:null, comment:'' })),
+      elapsed_sec:null, meta:{ model:'best_v1.pt', inference_ms:38.2, conf_threshold:0.25 } };
+  }
+  const w = image.width, h = image.height;
+  return { schema_version:'0.1', found:true, image,
+    detection:{ bbox:[w*.3, h*.22, w*.39, h*.39], confidence:0.87 },
+    total_score:50, title:'아쉬운 견습 카멜레온',
+    abilities:[
       { key:'evasion',       label:'탐지 회피',   score:13, comment:'AI가 바로 찾았어요.' },
       { key:'color_blend',   label:'색 동화',     score:72, comment:'주변 색과 잘 어울려요.' },
       { key:'texture_blend', label:'질감 동화',   score:58, comment:'무늬가 조금 튀어요.' },
       { key:'exposure',      label:'노출 크기',   score:40, comment:'몸이 꽤 크게 보여요.' },
-      { key:'clutter',       label:'배경 복잡도', score:66, comment:'복잡한 곳을 잘 골랐어요.' }
-    ],
-    elapsed_sec: null,
-    meta: { model:'mock', inference_ms:null, conf_threshold:0.25 }
-  };
+      { key:'clutter',       label:'배경 복잡도', score:66, comment:'복잡한 곳을 잘 골랐어요.' } ],
+    elapsed_sec:null, meta:{ model:'best_v1.pt', inference_ms:41.5, conf_threshold:0.25 } };
 }
 
-/* --- 3. 결과 그리기 (서버 응답 = docs/score-schema.md 3장 형식) --- */
-// 능력치 화면 이름은 프론트가 key 로 정합니다. (label 은 서버의 임시 이름)
-const AXIS_NAME = {
-  evasion:'탐지 회피', color_blend:'색 동화', texture_blend:'질감 동화',
-  exposure:'노출 크기', clutter:'배경 복잡도', find_difficulty:'발견 난이도'
+/* ===== ✨ 애니메이션 함수 ===== */
+const EASE = {                                                        // 0~1 진행도를 움직임 곡선으로 바꿔 줌
+  out:    t => 1 - Math.pow(1 - t, 3),
+  back:   t => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2),
+  linear: t => t
 };
-const axisName = a => AXIS_NAME[a.key] || a.label || a.key;
-const axisScoreText = a => a.score == null ? '-' : a.score;
+let radarRaf = 0, scoreRaf = 0;
 
+// 총점 숫자: 0 → 점수까지 올라감
+function showScore(total){
+  cancelAnimationFrame(scoreRaf);
+  const el = $('score');
+  if (!(ANIM.on && ANIM.countUp) || !Number.isFinite(total)) { el.textContent = total ?? '-'; return; }
+  el.textContent = 0;
+  const t0 = performance.now() + ANIM.radarDelay;
+  const step = now => {
+    const p = Math.max(0, Math.min(1, (now - t0) / ANIM.countMs));
+    el.textContent = Math.round(total * EASE.out(p));
+    if (p < 1) scoreRaf = requestAnimationFrame(step);
+  };
+  scoreRaf = requestAnimationFrame(step);
+}
+
+// 오각형 그래프: 가운데에서 점수만큼 펼쳐짐 (k=이름들, v=점수들(0~100), sc=화면에 쓸 점수 글자)
+function drawRadar(k, v, sc){
+  const cx = 160, cy = 150, R = 105, n = k.length;
+  const at = (i, f) => { const t = -Math.PI/2 + i*2*Math.PI/n; return [cx + Math.cos(t)*R*f, cy + Math.sin(t)*R*f]; };
+  const ring = f => k.map((_, i) => at(i, f).join(',')).join(' ');
+  let g = '';
+  [.25,.5,.75,1].forEach(f => g += `<polygon points="${ring(f)}" fill="none" stroke="#cfc9b6"/>`);   // 바탕 오각형
+  g += `<polygon class="rdPoly" fill="rgba(107,131,80,.4)" stroke="#3f5c2b" stroke-width="2.5" stroke-linejoin="round"/>`;  // 점수 모양
+  k.forEach(() => g += `<circle class="rdDot" r="4" fill="#3f5c2b"/>`);                                // 꼭짓점 점
+  k.forEach((name, i) => { const q = at(i, 1.22);                                                     // 항목 이름
+    g += `<text class="rdLabel" x="${q[0]}" y="${q[1]}" text-anchor="middle" font-size="12" fill="#1f2a1f">${esc(name)} ${sc[i]}</text>`; });
+  const svg = $('radar'); svg.innerHTML = g;
+
+  const poly = svg.querySelector('.rdPoly'), dots = svg.querySelectorAll('.rdDot'), labels = svg.querySelectorAll('.rdLabel');
+  const setT = t => {                                                                                 // t: 0(가운데) ~ 1(완성)
+    const pts = k.map((_, i) => at(i, v[i] / 100 * t));
+    poly.setAttribute('points', pts.map(q => q.join(',')).join(' '));
+    dots.forEach((d, i) => { d.setAttribute('cx', pts[i][0]); d.setAttribute('cy', pts[i][1]); });
+    labels.forEach(l => l.setAttribute('opacity', Math.min(1, t * 2)));                              // 이름은 서서히 나타남
+  };
+
+  cancelAnimationFrame(radarRaf);
+  if (!ANIM.on) { setT(1); return; }
+  setT(0);
+  const t0 = performance.now() + ANIM.radarDelay;
+  const step = now => {
+    const p = Math.max(0, Math.min(1, (now - t0) / ANIM.radarMs));
+    setT((EASE[ANIM.ease] || EASE.out)(p));
+    if (p < 1) radarRaf = requestAnimationFrame(step);
+  };
+  radarRaf = requestAnimationFrame(step);
+}
+
+/* --- 3. 결과 그리기 (서버가 준 점수 스키마 JSON을 화면에 표시) --- */
 function renderResult(){
   const d = state.data;
   if (!d) { location.hash = 'upload'; return; }
+  const det = d.found ? d.detection : null;                 // 못 찾았으면 null
 
-  // 원본 사진 크기: 박스를 % 위치로 그릴 때 사용
-  const W = (d.image && d.image.width) || state.w || 1;
-  const H = (d.image && d.image.height) || state.h || 1;
-  const det = d.found ? d.detection : null;      // 대표 박스 1개 (못 찾으면 null)
-
-  // 사진 + 박스 (found=false 이면 그리지 않음)
+  // 사진 + 대표 박스 1개 (bbox 는 원본 사진 기준 픽셀 좌표)
   const s = $('shot'); s.innerHTML = '';
   const im = document.createElement('img');
   im.src = state.src; im.style.cssText = 'width:100%;display:block'; s.appendChild(im);
-  if (det && det.bbox) {
-    const [x1, y1, x2, y2] = det.bbox;
-    const bx = document.createElement('div');
-    bx.className = 'bb';
-    bx.style.cssText = `left:${x1/W*100}%;top:${y1/H*100}%;width:${(x2-x1)/W*100}%;height:${(y2-y1)/H*100}%`;
-    const label = det.confidence == null ? '탐지' : '탐지 신뢰도 ' + Number(det.confidence).toFixed(2);
-    bx.innerHTML = `<span>${label}</span>`;
-    s.appendChild(bx);
-  }
+  const place = () => {
+    const W = (d.image && d.image.width)  || im.naturalWidth  || state.w;
+    const H = (d.image && d.image.height) || im.naturalHeight || state.h;
+    [det, ...(d.others || [])].forEach((o, i) => {                  // 첫 번째 = 대표 박스(주황)
+      const [x1,y1,x2,y2] = o.bbox;
+      const bx = document.createElement('div'); bx.className = 'bb' + (i ? ' sub' : '') + (ANIM.on && ANIM.box ? ' anim' : '');
+      bx.style.cssText = `left:${x1/W*100}%;top:${y1/H*100}%;width:${(x2-x1)/W*100}%;height:${(y2-y1)/H*100}%`;
+      const name = i ? (esc(o.class_name) || '기타') + ' ' : '탐지 신뢰도 ';
+      bx.innerHTML = `<span>${name}${Number(o.confidence).toFixed(2)}</span>`;
+      s.appendChild(bx);
+    });
+  };
+  if (det) { im.complete ? place() : im.onload = place; }
 
-  // 점수·칭호 (null 이면 '-' 로 표시하고 칭호는 숨김)
-  $('score').textContent = d.total_score == null ? '-' : d.total_score;
+  // 총점, 칭호 (못 찾았으면 null → '-')
+  showScore(d.total_score);                                 // 총점 (카운트업 효과)
   $('title').textContent = d.title || '';
   $('title').hidden = !d.title;
 
-  // 찾음 / 못 찾음 안내
-  $('found').classList.toggle('miss', !d.found);
-  $('found').textContent = d.found
-    ? (det && det.confidence != null
-        ? `AI가 캐릭터를 찾았어요. 탐지 신뢰도 ${Number(det.confidence).toFixed(2)}`
-        : 'AI가 캐릭터를 찾았어요.')
-    : 'AI가 캐릭터를 찾지 못했어요. 정말 잘 숨었거나, 사진에 캐릭터가 없을 수도 있어요.';
+  // 찾았는지 한 줄 안내
+  const extra = (d.others || []).length;
+  $('found').textContent = det
+    ? `AI가 캐릭터를 찾았어요 (신뢰도 ${Number(det.confidence).toFixed(2)})` + (extra ? ` · 그 밖에 ${extra}개를 더 찾았어요` : '')
+    : d.found ? 'AI가 찾았다고 했지만 위치 정보를 읽지 못했어요.'
+    : 'AI가 캐릭터를 찾지 못했어요. 정말 잘 숨었을 수도, 사진에 캐릭터가 없을 수도 있어요.';
 
-  // 능력치 목록 (배열 순서 = 차트 순서, score=null 이면 '-')
-  const ab = Array.isArray(d.abilities) ? d.abilities : [];
-  $('cm').innerHTML = ab.map(a =>
-    `<div class="row"><b>${axisName(a)}</b><span>${axisScoreText(a)}${a.comment ? ' · ' + a.comment : ''}</span></div>`
-  ).join('');
+  // 능력치: 배열 순서 = 차트 순서. score 가 null 이면 숫자는 '-', 그래프는 0
+  const items = (d.abilities || []).map(a => ({
+    label: LABELS[a.key] || a.label || a.key, score: a.score, comment: a.comment || ''
+  }));
+  $('cm').innerHTML = items.map((a, i) =>
+    `<div class="row${ANIM.on && ANIM.rows ? ' anim' : ''}" style="--d:${ANIM.radarDelay + i * ANIM.rowStagger}ms"><b>${esc(a.label)}</b><span>${a.score ?? '-'}${a.comment ? ' · ' + esc(a.comment) : ''}</span></div>`).join('');
 
-  // 오각형 그래프: null 은 0 으로 그리고 숫자는 '-' 로 표시
-  $('radar').hidden = ab.length < 3;
-  if (ab.length >= 3) {
-    const cx = 160, cy = 150, R = 105;
-    const v = ab.map(a => a.score == null ? 0 : Math.max(0, Math.min(100, a.score)));
-    const pts = f => ab.map((_, i) => { const t = -Math.PI/2 + i*2*Math.PI/ab.length; return [cx+Math.cos(t)*R*f, cy+Math.sin(t)*R*f]; });
-    let g = '';
-    [.25,.5,.75,1].forEach(f => g += `<polygon points="${pts(f).join(' ')}" fill="none" stroke="#cfc9b6"/>`);
-    const dp = pts(1).map((q,i) => [cx+(q[0]-cx)*v[i]/100, cy+(q[1]-cy)*v[i]/100]);
-    g += `<polygon points="${dp.join(' ')}" fill="rgba(107,131,80,.4)" stroke="#3f5c2b" stroke-width="2.5"/>`;
-    dp.forEach(q => g += `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#3f5c2b"/>`);
-    pts(1.22).forEach((q,i) => g += `<text x="${q[0]}" y="${q[1]}" text-anchor="middle" font-size="12" fill="#1f2a1f">${axisName(ab[i])} ${axisScoreText(ab[i])}</text>`);
-    $('radar').innerHTML = g;
-  }
+  // 오각형(레이더) 그래프: 움직임은 drawRadar() 안에 있음
+  const k = items.map(a => a.label), v = items.map(a => a.score ?? 0), sc = items.map(a => a.score ?? '-');
+  $('radar').hidden = items.length < 3;
+  if (items.length >= 3) drawRadar(k, v, sc);
 
-  // 서버 meta 는 화면에 쓰지 않음. Mock 모드일 때만 안내.
-  $('note').textContent = USE_MOCK ? '※ 가짜 결과(USE_MOCK)를 보여주고 있어요.' : '';
+  // 안내 문구: 아직 전용 모델(best) 전이면 알려줌
+  const m = d.meta && d.meta.model;
+  $('note').textContent = (m && /\.pt$/i.test(m) && !/best/i.test(m))
+    ? `※ 아직 캐릭터 전용 모델(best.pt) 전이라, 기본 모델(${m}) 기준 결과예요.` : '';
 }
 
 /* --- 4. 화면 전환 (주소 뒤 #upload / #result) --- */
