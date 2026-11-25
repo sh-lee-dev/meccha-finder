@@ -71,7 +71,7 @@ meccha-finder/
 │   └── score/                # 점수 계산 (evaluate), 스키마 클래스
 ├── tests/                    # API 테스트
 ├── scripts/
-│   └── prepare_dataset.py    # 프레임 추출, train/val 분할 (추가 예정)
+│   └── evaluate_folder.py    # 사진 폴더 일괄 평가 (모델 성능, 점수 분포)
 └── data/                     # Git 제외, Drive에서 내려받아 사용
 ```
 
@@ -134,4 +134,5 @@ yolo detect predict model=runs/detect/train/weights/best.pt source=<이미지 �
 - [결정 기록](docs/decisions.md)
 - [데이터 스키마](docs/score-schema.md)
 - [API 서버 실행 가이드](docs/api.md)
+- [일괄 평가 가이드](docs/evaluate.md)
 - [팀 지침서](docs/team-guide.md)

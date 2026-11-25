@@ -19,3 +19,6 @@ Thumbs.db
 .vscode/
 .idea/
 .pytest_cache/
+
+# 평가 결과 (scripts/evaluate_folder.py)
+eval_results/
