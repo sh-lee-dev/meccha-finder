@@ -9,11 +9,13 @@
 
 ## 2. 누가 무엇을 하나
 
-| 이름 | 역할 | 만드는 것 | 내 폴더 | 내 브랜치 |
+| 이름 | 역할 | 만드는 것 | 내 폴더 | 브랜치 |
 |---|---|---|---|---|
-| 이한울 | 모델 | 데이터로 YOLO 학습, 이미지를 넣으면 박스·신뢰도를 주는 `detect()` | `src/model/` | `yolo/model` |
-| 이상현 (조장) | 점수·백엔드 | 탐지 결과를 점수로 바꾸는 `evaluate()`, 문서·일정 관리 | `src/score/` | `score/algorithm` |
-| 한승우 | UI·통합 | 입력 → 결과 화면, 세 모듈을 하나로 연결 | `src/ui/` | `ui/merge` |
+| 이한울 | 모델 | 데이터로 YOLO 학습(`best.pt`), 이미지를 넣으면 박스·신뢰도를 주는 `detect()` | `src/model/` | `yolo/…` |
+| 이상현 (조장) | 점수·백엔드 | 탐지 결과를 점수로 바꾸는 `evaluate()`, API 서버, 문서·일정 관리 | `src/score/`, `src/api/` | `score/…` |
+| 한승우 | UI·통합 | 입력 → 결과 화면 | `frontend/` | `ui/…` |
+
+브랜치는 **`영역/작업내용`** 형식으로 작업마다 새로 만들어요. 영역은 `score`, `yolo`, `ui`, 문서 작업은 `docs`예요. (예: `score/api`, `yolo/train`, `ui/schema-connect`)
 
 각자 **자기 폴더만** 수정하면 충돌이 거의 생기지 않습니다.
 README, `requirements.txt` 같은 공용 파일을 바꿀 때는 PR 설명에 적어 주세요.
